@@ -3,7 +3,7 @@ name: Dependabot auto-merge node (delt)
 # Delt workflow for frontend-repoene - se README.md i denne mappa for konvensjoner og plasseringsbegrunnelse.
 # Node-varianten av dependabot-auto-merge.yml (delt) - hold de to filene tekstlig parallelle, kun byggejobben skiller dem.
 # Pakkehåndterer detekteres automatisk fra lockfila (pnpm-lock.yaml -> pnpm, ellers npm ci), slik at npm->pnpm-migreringen (jf. nais-doc) ikke krever caller-endringer.
-# Kalles fra repoenes dependabot-auto-merge.yml med `uses: navikt/tiltakspenger/.github/workflows/dependabot-auto-merge-node.yml@main`.
+# Kalles fra repoenes dependabot-auto-merge.yml med `uses: navikt/tiltakspenger-workflows/.github/workflows/dependabot-auto-merge-node.yml@main`.
 # Kalleren må gi jobben `contents: write` (merge av PR-en) og `pull-requests: write` (gh pr merge), og sende secrets eksplisitt - aldri `secrets: inherit`.
 #
 # Sikkerhetsdesign - hvorfor fire jobber og ikke én (jf. sikkerhetsreview-funn F3, navikt/tiltakspenger#31):

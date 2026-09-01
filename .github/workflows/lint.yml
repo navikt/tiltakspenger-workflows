@@ -24,7 +24,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/lint-workflows.yml
     with:
-      # Metarepoets zizmor.yml er bevisst et supersett av malen (bot-conditions-unntak for de delte workflowene bor her).
+      # Dette repoets zizmor.yml er bevisst et supersett av malen (bot-conditions-unntak for de delte workflowene bor her).
       zizmor-mal-sjekk: false
-      # Malene bor her, og metarepoets dependabot.yml er bevisst kun github-actions (auto ville krevd gradle-malen pga. rot-gradlefila).
+      # Malene bor her, og repoets dependabot.yml er bevisst kun github-actions.
       dependabot-mal: ingen

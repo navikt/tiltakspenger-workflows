@@ -28,7 +28,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: navikt/tiltakspenger/.github/workflows/dependabot-auto-merge.yml@main
+    uses: navikt/tiltakspenger-workflows/.github/workflows/dependabot-auto-merge.yml@main
     secrets:
       SLACK_VARSEL_WEBHOOK_URL: ${{ secrets.SLACK_VARSEL_WEBHOOK_URL }}
 ```
@@ -190,7 +190,7 @@ Der vi avviker, er det bevisst:
   `lint.yml` håndhever dette maskinelt: actionlint og zizmor (begge blokkerende) kjører på alle endringer under `.github/`.
 - Workflows som kjører untrusted kode (f.eks. bygg av en Dependabot-bumpet avhengighet) splittes i jobber slik at write-token og tredjepartskode aldri deler jobb; jobben med write-token skal ikke ha checkout.
   Se sikkerhetsdesign-kommentaren øverst i `dependabot-auto-merge.yml`.
-- Repo som kaller delte workflows trenger en `.github/zizmor.yml` med `unpinned-uses`-policyen `"navikt/tiltakspenger/*": ref-pin` (ellers flagges `@main`-referansen) — kopier fra dette repoet eller libs, og behold begrunnelseskommentarene.
+- Repo som kaller delte workflows trenger en `.github/zizmor.yml` med `unpinned-uses`-policyen `"navikt/tiltakspenger-workflows/*": ref-pin` (ellers flagges `@main`-referansen) — kopier fra dette repoet eller libs, og behold begrunnelseskommentarene.
   Zizmor-unntak skal alltid ha en begrunnelse i konfigen; informational-funn rapporteres ikke (`min-severity: low` i den delte workflowen).
   Gjelder unntaket ett enkelt funn og hører begrunnelsen hjemme ved siden av koden, bruk i stedet en `# zizmor: ignore[regel]`-kommentar på linja funnet peker på (tåler trailing tekst, så SHA-/versjonskommentaren kan stå i samme kommentar) — den treffer kun det funnet, mens et konfig-unntak per fil også dekker framtidige funn i fila. Begrunnelsen skal da stå i fila, ikke i konfigen. Presedens: `secrets-inherit` på tms-deploy-kallene i `tiltakspenger-meldekort-microfrontend`.
 
