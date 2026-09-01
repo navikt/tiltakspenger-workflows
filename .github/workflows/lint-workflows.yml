@@ -2,7 +2,7 @@ name: Lint workflows (delt)
 
 # Delt workflow for alle tiltakspenger-repoene - se README.md i denne mappa for konvensjoner og plasseringsbegrunnelse.
 # Linter repoets GitHub Actions-workflows: actionlint (skjema, uttrykkstypesjekk og shellcheck av run-blokker) og zizmor (sikkerhetsrevisjon).
-# Kalles med `uses: navikt/tiltakspenger/.github/workflows/lint-workflows.yml@main`; metarepoet selv kaller med lokal sti slik at PR-er testes med sin egen versjon.
+# Kalles med `uses: navikt/tiltakspenger-workflows/.github/workflows/lint-workflows.yml@main`; dette repoet selv kaller med lokal sti slik at PR-er testes med sin egen versjon.
 # Kalleren må gi jobbene `contents: read`.
 
 on:
@@ -14,7 +14,7 @@ on:
         type: boolean
         default: true
       zizmor-mal-sjekk:
-        description: "Om repoets .github/zizmor.yml skal kreves lik malen i metarepoet (skru av kun ved begrunnet avvik)"
+        description: "Om repoets .github/zizmor.yml skal kreves lik malen i navikt/tiltakspenger-workflows (skru av kun ved begrunnet avvik)"
         required: false
         type: boolean
         default: true
@@ -44,7 +44,7 @@ jobs:
           args: -color
 
   # GitHub kan ikke lenke config-filer på tvers av repo (dependabot.yml/zizmor.yml må fysisk finnes per repo, uten include-mekanisme).
-  # Drift-vakten gir lenke-semantikk i stedet: repoets kopi må være lik malen i metarepoet, ellers feiler linten.
+  # Drift-vakten gir lenke-semantikk i stedet: repoets kopi må være lik malen i navikt/tiltakspenger-workflows, ellers feiler linten.
   # Repo med begrunnet avvik setter `zizmor-mal-sjekk: false` i calleren, med kommentar.
   konfig-drift:
     runs-on: ubuntu-latest
@@ -56,15 +56,15 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - name: Sammenlign zizmor.yml med malen i metarepoet
+      - name: Sammenlign zizmor.yml med malen i navikt/tiltakspenger-workflows
         run: |
-          curl -sSf -o /tmp/mal-zizmor.yml https://raw.githubusercontent.com/navikt/tiltakspenger/main/.github/maler/zizmor.yml
+          curl -sSf -o /tmp/mal-zizmor.yml https://raw.githubusercontent.com/navikt/tiltakspenger-workflows/main/.github/maler/zizmor.yml
           if ! diff -u /tmp/mal-zizmor.yml .github/zizmor.yml; then
-            echo "::error::.github/zizmor.yml avviker fra malen i metarepoet (.github/maler/zizmor.yml). Oppdater kopien, eller sett zizmor-mal-sjekk: false i calleren med begrunnelse."
+            echo "::error::.github/zizmor.yml avviker fra malen i navikt/tiltakspenger-workflows (.github/maler/zizmor.yml). Oppdater kopien, eller sett zizmor-mal-sjekk: false i calleren med begrunnelse."
             exit 1
           fi
 
-  # Samme lenke-semantikk for dependabot.yml: repoets kopi må være lik riktig mal i metarepoet.
+  # Samme lenke-semantikk for dependabot.yml: repoets kopi må være lik riktig mal i navikt/tiltakspenger-workflows.
   # Mal velges automatisk fra repo-innhold (gradle-fil -> gradle, package.json -> node, ellers actions), eller eksplisitt via `dependabot-mal`.
   # Repo med begrunnet avvik (f.eks. registries-blokk) setter `dependabot-mal: ingen` i calleren, med kommentar.
   dependabot-drift:
@@ -77,7 +77,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - name: Sammenlign dependabot.yml med malen i metarepoet
+      - name: Sammenlign dependabot.yml med malen i navikt/tiltakspenger-workflows
         run: |
           mal="$DEPENDABOT_MAL"
           if [ "$mal" = auto ]; then
@@ -89,9 +89,9 @@ jobs:
               mal=actions
             fi
           fi
-          curl -sSf -o /tmp/mal-dependabot.yml "https://raw.githubusercontent.com/navikt/tiltakspenger/main/.github/maler/dependabot-$mal.yml"
+          curl -sSf -o /tmp/mal-dependabot.yml "https://raw.githubusercontent.com/navikt/tiltakspenger-workflows/main/.github/maler/dependabot-$mal.yml"
           if ! diff -u /tmp/mal-dependabot.yml .github/dependabot.yml; then
-            echo "::error::.github/dependabot.yml avviker fra malen i metarepoet (.github/maler/dependabot-$mal.yml). Oppdater kopien, eller sett dependabot-mal: ingen i calleren med begrunnelse."
+            echo "::error::.github/dependabot.yml avviker fra malen i navikt/tiltakspenger-workflows (.github/maler/dependabot-$mal.yml). Oppdater kopien, eller sett dependabot-mal: ingen i calleren med begrunnelse."
             exit 1
           fi
         env:

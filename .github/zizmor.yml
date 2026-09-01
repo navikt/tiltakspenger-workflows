@@ -13,9 +13,9 @@ rules:
   unpinned-uses:
     config:
       policies:
-        # Delte workflows i metarepoet refereres bevisst med @main: metarepo-main er en dokumentert tillitsgrense,
+        # Delte workflows i dette repoet refereres bevisst med @main fra callerne: main her er en dokumentert tillitsgrense,
         # og callerne skal plukke opp forbedringer uten PR i hvert repo.
         # Mønsteret må ha /* for å matche reusable workflow-stier (owner/repo alene matcher ikke subpath).
-        "navikt/tiltakspenger/*": ref-pin
+        "navikt/tiltakspenger-workflows/*": ref-pin
         # Alt annet krever SHA-pinning (Nav-policy).
         "*": hash-pin
