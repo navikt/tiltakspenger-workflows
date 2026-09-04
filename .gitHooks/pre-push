@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pre-push-vakt for workflows-repoet: slipp aldri upinnede actions eller andre lint-/sikkerhetsfunn til main.
 # Callerne i alle repoene refererer de delte workflowene her med @main, så en dårlig push er live umiddelbart - CI-en rekker bare å farge kjøringen rød i etterkant.
-# Kjører samme sjekker som CI (lint.yml): actionlint (inkl. shellcheck) og zizmor, med samme pinnede verktøyversjoner.
+# Kjører de samme hovedsjekkene som CI (lint-workflows.yml): actionlint (inkl. shellcheck) og zizmor. CI kjører i tillegg konfig-/dependabot-driftvaktene.
 # Aktiveres per klone med: git config core.hooksPath .gitHooks
 # Bevisst omgåelse i nødstilfelle: git push --no-verify (da er du selv vakten).
 set -euo pipefail
