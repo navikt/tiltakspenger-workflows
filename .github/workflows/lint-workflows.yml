@@ -33,7 +33,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # Offisielt actionlint-image pinnet på digest (tags kan flyttes, digests er innholdsadresserte); Dependabot bumper docker://-referanser.
@@ -53,7 +53,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Sammenlign zizmor.yml med malen i navikt/tiltakspenger-workflows
@@ -74,7 +74,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Sammenlign dependabot.yml med malen i navikt/tiltakspenger-workflows
@@ -102,14 +102,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # Sikkerhetsrevisjon av workflowene: template injection, permissions, pinning, bot-gating, cache poisoning m.m.
       # Blokkerende som default (policyen fleet-wide); repo som ennå ikke har nedfelt unntakene sine setter `zizmor-blokkerende: false` midlertidig.
       # `annotations` i stedet for `advanced-security` gir funn som PR-annotasjoner uten behov for `security-events: write`.
       - name: zizmor
-        uses: zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02 # v0.6.0
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
         continue-on-error: ${{ !inputs.zizmor-blokkerende }}
         with:
           version: "1.27.0"
