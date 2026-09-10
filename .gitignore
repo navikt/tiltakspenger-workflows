@@ -1,3 +1,8 @@
 .idea
 .gradle
 .vscode
+
+# Arbeidstrær (git worktree add) uansett navn og nivå
+.worktrees/
+.worktree/
+worktrees/
