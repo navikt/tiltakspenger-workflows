@@ -6,11 +6,14 @@ Kopier fila til repoets `.github/`, behold begrunnelseskommentarene, og gjør ku
 | Mal | Kopieres til | For |
 | --- | --- | --- |
 | `zizmor.yml` | `.github/zizmor.yml` | alle repo som kaller delte workflows |
-| `dependabot-gradle.yml` | `.github/dependabot.yml` | Kotlin/JVM-repoene (gradle + actions) |
-| `dependabot-node.yml` | `.github/dependabot.yml` | TypeScript/JavaScript-repoene (npm/pnpm + actions) |
+| `dependabot-gradle.yml` | `.github/dependabot.yml` | Kotlin/JVM-repoene uten Dockerfile (gradle + actions) |
+| `dependabot-gradle-docker.yml` | `.github/dependabot.yml` | Kotlin/JVM-repoene som bygger image (gradle + docker + actions) |
+| `dependabot-node.yml` | `.github/dependabot.yml` | TypeScript/JavaScript-repoene uten Dockerfile (npm/pnpm + actions) |
+| `dependabot-node-docker.yml` | `.github/dependabot.yml` | TypeScript/JavaScript-repoene som bygger image (npm/pnpm + docker + actions) |
 | `dependabot-actions.yml` | `.github/dependabot.yml` | repo uten kodeavhengigheter (iac, pdfgen) |
 
 Endres en mal her, oppdater repoene som bruker den (samme regel som for caller-workflows — se [workflows-README](../workflows/README.md)).
 For `zizmor.yml` og `dependabot.yml` håndheves dette maskinelt: drift-vaktene i den delte lint-workflowen feiler hvis et repos kopi avviker fra malen (lenke-semantikk — GitHub kan ikke lenke config-filer på tvers av repo).
-Dependabot-malen velges automatisk fra repo-innhold (gradle-fil → gradle, `package.json` → node, ellers actions); begrunnet avvik = `dependabot-mal: ingen` i lint-calleren med kommentar.
+Dependabot-malen velges automatisk fra repo-innhold (gradle-fil → gradle, `package.json` → node, ellers actions), og får `-docker`-varianten når repoet har en `Dockerfile`; begrunnet avvik = `dependabot-mal: ingen` i lint-calleren med kommentar.
+Docker-økosystemet er der fordi basebildene er pinnet til `tag@sha256:`; uten det blir digesten aldri bumpet.
 Standard `paths-ignore`-lister per repo-type står i workflows-README-ens konvensjonsseksjon.
