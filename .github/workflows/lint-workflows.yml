@@ -19,7 +19,7 @@ on:
         type: boolean
         default: true
       dependabot-mal:
-        description: "Hvilken dependabot-mal repoets .github/dependabot.yml skal kreves lik: auto (detekter fra repo-innhold), gradle, node, actions eller ingen (skru av kun ved begrunnet avvik)"
+        description: "Hvilken dependabot-mal repoets .github/dependabot.yml skal kreves lik: auto (detekter fra repo-innhold, og velger -docker-varianten når repoet har en Dockerfile), gradle, gradle-docker, node, node-docker, actions eller ingen (skru av kun ved begrunnet avvik)"
         required: false
         type: string
         default: 'auto'
@@ -65,7 +65,7 @@ jobs:
           fi
 
   # Samme lenke-semantikk for dependabot.yml: repoets kopi må være lik riktig mal i navikt/tiltakspenger-workflows.
-  # Mal velges automatisk fra repo-innhold (gradle-fil -> gradle, package.json -> node, ellers actions), eller eksplisitt via `dependabot-mal`.
+  # Mal velges automatisk fra repo-innhold (gradle-fil -> gradle, package.json -> node, ellers actions; pluss -docker når repoet har en Dockerfile), eller eksplisitt via `dependabot-mal`.
   # Repo med begrunnet avvik (f.eks. registries-blokk) setter `dependabot-mal: ingen` i calleren, med kommentar.
   dependabot-drift:
     runs-on: ubuntu-latest
@@ -87,6 +87,11 @@ jobs:
               mal=node
             else
               mal=actions
+            fi
+            # Et repo som bygger et image har i tillegg docker-økosystemet, slik at basebildets digest blir bumpet.
+            # `actions`-malen er for repoer uten byggoppsett i det hele tatt, og får aldri docker-varianten.
+            if [ -f Dockerfile ] && [ "$mal" != actions ]; then
+              mal="$mal-docker"
             fi
           fi
           curl -sSf -o /tmp/mal-dependabot.yml "https://raw.githubusercontent.com/navikt/tiltakspenger-workflows/main/.github/maler/dependabot-$mal.yml"
