@@ -101,9 +101,11 @@ Callerens `needs` på workflow-kallet venter på begge, så deploy er fortsatt g
 Slack-varselet ved feil på main bor i en egen jobb som dekker begge byggejobbene.
 
 **`GRADLE_ENCRYPTION_KEY`**: setup-gradle lagrer aldri Gradle configuration-cache i GHA-cachen uten en krypteringsnøkkel (`cache-encryption-key`) — uten den betaler hvert CI-bygg full konfigurasjon (~10 s).
-Secreten er valgfri (tom verdi gir samme oppførsel som før) og settes som repo-secret med samme verdi i alle JVM-repoene (org-secret krever org-admin i navikt):
-`key=$(openssl rand -base64 16); for r in arena datadeling journalposthendelser libs meldekort-api saksbehandling-api soknad-api tiltak; do gh secret set GRADLE_ENCRYPTION_KEY -R "navikt/tiltakspenger-$r" --body "$key"; done`
-Rotasjon er samme kommando med ny verdi — eneste kostnad er én kald configuration-cache per repo etterpå.
+Secreten er valgfri (tom verdi gir samme oppførsel som før) og settes som repo-secret i hvert JVM-repo (org-secret krever org-admin i navikt).
+GHA-cachen er per repo, så nøkkelen kan like gjerne være ulik fra repo til repo som lik; det eneste som teller er at den ikke endres uten grunn.
+Ett repo: `openssl rand -base64 16`, lim verdien inn under Settings → Secrets → Actions.
+Alle på én gang, med felles verdi: `key=$(openssl rand -base64 16); for r in arena datadeling journalposthendelser libs meldekort-api saksbehandling-api soknad-api; do gh secret set GRADLE_ENCRYPTION_KEY -R "navikt/tiltakspenger-$r" --body "$key"; done`
+Rotasjon er å sette ny verdi — eneste kostnad er én kald configuration-cache i repoet etterpå.
 Callerne sender den eksplisitt som `GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}` (jf. konvensjonen om aldri `secrets: inherit`).
 Dependabot-auto-merge-byggene får den ikke: Dependabot-events leser fra et eget secrets-lager, så det ville krevd et parallelt sett Dependabot-secrets for en liten gevinst.
 
