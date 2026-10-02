@@ -16,4 +16,6 @@ Endres en mal her, oppdater repoene som bruker den (samme regel som for caller-w
 For `zizmor.yml` og `dependabot.yml` håndheves dette maskinelt: drift-vaktene i den delte lint-workflowen feiler hvis et repos kopi avviker fra malen (lenke-semantikk — GitHub kan ikke lenke config-filer på tvers av repo).
 Dependabot-malen velges automatisk fra repo-innhold (gradle-fil → gradle, `package.json` → node, ellers actions), og får `-docker`-varianten når repoet har en `Dockerfile`; begrunnet avvik = `dependabot-mal: ingen` i lint-calleren med kommentar.
 Docker-økosystemet er der fordi basebildene er pinnet til `tag@sha256:`; uten det blir digesten aldri bumpet.
+Gradle-malene har Navs speil av GitHub Packages under `registries` fordi Dependabot bare når verter som er deklarert der.
+Uten oppføringen får Gradle-repoene ingen oppdateringer av egne biblioteker.
 Standard `paths-ignore`-lister per repo-type står i workflows-README-ens konvensjonsseksjon.
