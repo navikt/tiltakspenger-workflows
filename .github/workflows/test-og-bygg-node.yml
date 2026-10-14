@@ -65,7 +65,7 @@ jobs:
         uses: pnpm/action-setup@v6.0.10
         if: steps.pm.outputs.manager == 'pnpm'
       - name: Set up Node
-        uses: actions/setup-node@v7.0.0
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: ${{ inputs.node-version }}
           registry-url: https://npm.pkg.github.com
