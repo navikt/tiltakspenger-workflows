@@ -1,7 +1,8 @@
 name: Lint workflows (delt)
 
 # Delt workflow for alle tiltakspenger-repoene - se README.md i denne mappa for konvensjoner og plasseringsbegrunnelse.
-# Linter repoets GitHub Actions-workflows: actionlint (skjema, uttrykkstypesjekk og shellcheck av run-blokker) og zizmor (sikkerhetsrevisjon).
+# Linter repoets GitHub Actions-workflows: actionlint (skjema, uttrykkstypesjekk og shellcheck av run-blokker), zizmor (sikkerhetsrevisjon)
+# og at .github/workflows/actions.lock låser alle actions workflowene bruker (gh actions-lock).
 # Kalles med `uses: navikt/tiltakspenger-workflows/.github/workflows/lint-workflows.yml@main`; dette repoet selv kaller med lokal sti slik at PR-er testes med sin egen versjon.
 # Kalleren må gi jobbene `contents: read`.
 
@@ -33,7 +34,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       # Offisielt actionlint-image pinnet på digest (tags kan flyttes, digests er innholdsadresserte); Dependabot bumper docker://-referanser.
@@ -53,7 +54,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Sammenlign zizmor.yml med malen i navikt/tiltakspenger-workflows
@@ -74,7 +75,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Sammenlign dependabot.yml med malen i navikt/tiltakspenger-workflows
@@ -102,19 +103,39 @@ jobs:
         env:
           DEPENDABOT_MAL: ${{ inputs.dependabot-mal }}
 
+  # Actions refereres med tag i workflowene og låses til commit i .github/workflows/actions.lock - også transitive avhengigheter.
+  # --verify skriver ingenting, men feiler hvis en referanse mangler i lockfila, hvis lockfila har foreldede oppføringer,
+  # eller hvis en låst commit ikke lenger finnes i ref-en den er låst under. Rett feilen med `gh actions-lock` lokalt.
+  lockfil:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verifiser actions.lock
+        run: |
+          gh extension install github/gh-actions-lock --pin "$GH_ACTIONS_LOCK_VERSJON"
+          gh actions-lock --verify --no-interactive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Manuelt vedlikeholdspunkt, som zizmor-versjonen under: Dependabot ser ikke gh-extensions.
+          GH_ACTIONS_LOCK_VERSJON: v0.2.0
+
   zizmor:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       # Sikkerhetsrevisjon av workflowene: template injection, permissions, pinning, bot-gating, cache poisoning m.m.
       # Blokkerende som default (policyen fleet-wide); repo som ennå ikke har nedfelt unntakene sine setter `zizmor-blokkerende: false` midlertidig.
       # `annotations` i stedet for `advanced-security` gir funn som PR-annotasjoner uten behov for `security-events: write`.
       - name: zizmor
-        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        uses: zizmorcore/zizmor-action@v0.6.4
         continue-on-error: ${{ !inputs.zizmor-blokkerende }}
         with:
           version: "1.27.0"

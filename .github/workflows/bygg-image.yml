@@ -25,13 +25,13 @@ jobs:
       IMAGE: ${{ steps.docker-push.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           # Docker-bygget trenger bare filene, aldri tokenet.
           persist-credentials: false
       - name: Bygg og push docker-image
-        # Versjonsoversikt (tag -> SHA): https://github.com/nais/docker-build-push/tags
-        uses: nais/docker-build-push@8e41f1f58749b9248e376c25d33bfbdd2b1163c0 # v0
+        # Versjonsoversikt: https://github.com/nais/docker-build-push/tags
+        uses: nais/docker-build-push@main
         id: docker-push
         with:
           team: tpts
