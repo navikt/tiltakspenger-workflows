@@ -8,7 +8,7 @@ workflows:
         - 'nais/docker-build-push@main'
     '.github/workflows/codeql-gradle.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-java@v6.0.0'
+        - 'actions/setup-java@v6.0.1'
         - 'github/codeql-action@v4.37.9'
         - 'gradle/actions@v6.3.0'
     '.github/workflows/dependabot-auto-merge-node.yml':
@@ -18,12 +18,12 @@ workflows:
         - 'pnpm/action-setup@v6.0.10'
     '.github/workflows/dependabot-auto-merge.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-java@v6.0.0'
+        - 'actions/setup-java@v6.0.1'
         - 'dependabot/fetch-metadata@v3.1.0'
         - 'gradle/actions@v6.3.0'
     '.github/workflows/dependency-submission-gradle.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-java@v6.0.0'
+        - 'actions/setup-java@v6.0.1'
         - 'gradle/actions@v6.3.0'
     '.github/workflows/deploy-alerts.yml':
         - 'actions/checkout@v7.0.1'
@@ -37,7 +37,7 @@ workflows:
     '.github/workflows/lint.yml': []
     '.github/workflows/test-og-bygg-gradle.yml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-java@v6.0.0'
+        - 'actions/setup-java@v6.0.1'
         - 'gradle/actions@v6.3.0'
         - 'nais/docker-build-push@main'
     '.github/workflows/test-og-bygg-node.yml':
@@ -70,9 +70,9 @@ dependencies:
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
-    'actions/setup-java@v6.0.0':
-        ref: 'v6.0.0'
-        commit: 'sha1-dd06d9cba3e5552c54d9f8ea23572deb30010f7c'
+    'actions/setup-java@v6.0.1':
+        ref: 'v6.0.1'
+        commit: 'sha1-de7274f081f381c8f8158605e0321c36c376e2e6'
         owner_id: 44036562
         repo_id: 196057608
     'actions/setup-node@v7.0.0':
