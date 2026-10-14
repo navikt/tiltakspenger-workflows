@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pre-push-vakt for workflows-repoet: slipp aldri upinnede actions eller andre lint-/sikkerhetsfunn til main.
 # Callerne i alle repoene refererer de delte workflowene her med @main, så en dårlig push er live umiddelbart - CI-en rekker bare å farge kjøringen rød i etterkant.
-# Kjører de samme hovedsjekkene som CI (lint-workflows.yml): actionlint (inkl. shellcheck) og zizmor. CI kjører i tillegg konfig-/dependabot-driftvaktene.
+# Kjører de samme hovedsjekkene som CI (lint-workflows.yml): actionlint (inkl. shellcheck), zizmor og lockfil-dekning. CI kjører i tillegg konfig-/dependabot-driftvaktene.
 # Aktiveres per klone med: git config core.hooksPath .gitHooks
 # Bevisst omgåelse i nødstilfelle: git push --no-verify (da er du selv vakten).
 set -euo pipefail
@@ -22,5 +22,13 @@ echo "pre-push: zizmor …"
 docker run --rm -v "$ROOT":/repo \
     ghcr.io/zizmorcore/zizmor@sha256:5800c8d5e83263d68a8874989b0eb3939e177540e9395de48158d24656141ee9 \
     -q --offline --min-severity low --config /repo/.github/zizmor.yml /repo/.github
+
+echo "pre-push: lockfil …"
+# Offline og raskt: sjekker at hver uses:-referanse har en oppføring i .github/workflows/actions.lock. CI kjører den fulle --verify.
+if ! gh actions-lock --version >/dev/null 2>&1; then
+    echo "pre-push: gh-actions-lock kreves for lockfil-vakten - installer med 'gh extension install github/gh-actions-lock', eller omgå bevisst med 'git push --no-verify'." >&2
+    exit 1
+fi
+(cd "$ROOT" && gh actions-lock --verify-local)
 
 echo "pre-push: grønt - trygt å pushe."

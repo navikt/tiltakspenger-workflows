@@ -110,7 +110,20 @@ Callerne sender den eksplisitt som `GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_EN
 Dependabot-auto-merge-byggene får den ikke: Dependabot-events leser fra et eget secrets-lager, så det ville krevd et parallelt sett Dependabot-secrets for en liten gevinst.
 
 **Bevisst ikke delt** (repo-spesifikk variasjon overstiger gevinsten i dag): frontendenes lokale image-byggeworkflows (`.build-app.yml` m.fl. — ENV-matrise, env-filer, CDN-opplasting, `image_suffix`), microfrontendens deploy (Astro + CDN), pdfgenrs' `.test.yml` (brevtester) og iac (rene manifest-deployer — kan adoptere `deploy-nais.yml` ved behov).
-CDN-opplasting: hele Nav (inkl. nais-doc og dagpenger) bruker `nais/deploy/actions/cdn-upload/v2@master` — vi SHA-pinner den i stedet (`@2d18f050f07b6a007864c6a57070ed915d571beb`-familien; actionen bor i nais/deploy-repoet, versjonen ligger i stien `/v2`).
+CDN-opplasting: hele Nav (inkl. nais-doc og dagpenger) bruker `nais/deploy/actions/cdn-upload/v2@master` — det gjør vi også, men med commiten låst i `actions.lock` (actionen bor i nais/deploy-repoet, versjonen ligger i stien `/v2`).
+
+## Låsing av actions (`actions.lock`)
+
+Actions refereres med tag eller gren i workflowene (`actions/checkout@v7.0.1`), og hvert repo låser dem til commit i `.github/workflows/actions.lock` med [`gh actions-lock`](https://github.com/github/gh-actions-lock) — jf. [GitHubs dokumentasjon om workflow-lockfiler](https://docs.github.com/en/actions/concepts/security/workflow-dependency-lockfiles).
+Lockfila erstatter SHA-pinning i workflowfilene: den låser også transitive avhengigheter (actions som composite actions bruker), og runneren avviser en kjøring der en action mangler i lockfila eller repoet bak navnet har byttet identitet.
+Funksjonen er i public preview, så format og flagg kan endre seg.
+
+- **Endrer du `uses:` i en workflow, kjør `gh actions-lock --no-migrate-local-actions` i repo-roten** og commit lockfila sammen med endringen. Rediger aldri lockfila for hånd. Installer verktøyet med `gh extension install github/gh-actions-lock`.
+- **`--no-migrate-local-actions`**: uten flagget skriver verktøyet om lokale `uses: ./…` til `uses: $/…`, som verken actionlint 1.7.12 eller zizmor 1.27 forstår ennå.
+- **Dependabot** oppdaterer tag-en i workflowen og låsen i lockfila i samme PR. Grener og flytende tagger (`@master`, `@main`, `@v2`) flyttes ikke av Dependabot; dem oppdaterer du med `gh actions-lock --relock` etter å ha sett over hva som har endret seg oppstrøms.
+- **Lint-gaten** (`lockfil`-jobben i `lint-workflows.yml`) kjører `gh actions-lock --verify` og feiler hvis en referanse mangler i lockfila, lockfila har foreldede oppføringer, eller en låst commit ikke lenger finnes i ref-en sin.
+- **Unntak som fortsatt pinnes i workflowfila:** reusable workflows fra andre repoer (lockfila låser dem ikke — i dag kun tms-deploy i `tiltakspenger-meldekort-microfrontend`, håndhevet med `hash-pin` i zizmor-malen) og `docker://`-images (digest-pinnes som før).
+- Migreringen bevarte de commitene som var pinnet. Der en gammel SHA ikke lenger lå på taggen i kommentaren (`# v2`, `# v0`), valgte verktøyet grenen commiten ligger på (`@master`, `@main`).
 
 ## Maler for repo-config
 
@@ -124,7 +137,9 @@ Metarepo-main er tillitsgrensen for all CI (`@main`-callere), og CI-lint rekker 
 Derfor to lag:
 
 1. **Pre-push-hook** (`.gitHooks/pre-push`): kjører samme actionlint + zizmor som CI (pinnede verktøy) før push slipper ut. Aktiveres per klone med `git config core.hooksPath .gitHooks`; bevisst omgåelse er `git push --no-verify`.
-2. **Blokkerende lint i CI** med `unpinned-uses`-policy `"*": hash-pin` — fanger alt hooken ikke så (verifisert: en upinnet action gir exit 14 med eksplisitt funn).
+2. **Blokkerende lint i CI**: `gh actions-lock --verify` sjekker at alle actions er låst i `actions.lock`, og zizmors `unpinned-uses`-policy krever minst tag (`ref-pin`) og SHA for reusable workflows fra andre repoer — fanger alt hooken ikke så.
+
+Hooken kjører i tillegg `gh actions-lock --verify-local` (offline dekningssjekk av lockfila).
 
 Vurder repo-ruleset med påkrevd lint-sjekk på metarepo-main som tredje lag — metarepoet har ingen auto-merge, så det kolliderer ikke med automerge-designet.
 
@@ -145,7 +160,7 @@ Kostnaden (en «unødig» prod-deploy eller artefaktversjon per ren CI-endring) 
 
 Modellen er delt med vilje, etter hva som gir mest security-verdi per repo-type:
 
-- **JVM-backendene (8): advanced setup** via delt `codeql-gradle.yml`-caller. Her har `security-and-quality`-suiten (kode­kvalitets-queries: ressurslekkasjer, null-deref, død kode) **ingen lokal erstatning** — Spotless/ktlint er formattering, Konsist er arkitektur, Kover er dekning. Advanced gir da unik verdi, og code-as-config/drift-vakt/SHA-pinning følger med.
+- **JVM-backendene (8): advanced setup** via delt `codeql-gradle.yml`-caller. Her har `security-and-quality`-suiten (kode­kvalitets-queries: ressurslekkasjer, null-deref, død kode) **ingen lokal erstatning** — Spotless/ktlint er formattering, Konsist er arkitektur, Kover er dekning. Advanced gir da unik verdi, og code-as-config/drift-vakt/lockfil-låsing følger med.
   Dette er den eneste språktypen som bruker en delt CodeQL-caller; en tilsvarende `codeql-node.yml` fantes, men ble fjernet som ubrukt da frontendene landet på default setup (hent den fra git-historikk om et framtidig TS/JS-repo skulle trenge advanced).
 - **Frontendene (4): GitHub default setup.** For JS/TS dekker ESLint + `tsc` allerede kvalitetsqueriene, så advanced sitt eneste egentlige fortrinn forsvinner. Da vinner default setup: security-SAST ved **push + PR + ukentlig** (bedre timing enn callernes schedule-only), null vedlikehold, GitHub-styrt versjon, ingen fork-PR-floke (`security-events: write` mangler på fork-token).
 - **pdfgenrs: default setup** (auto-detektert Python/JS). **pdfgen** (Handlebars + shell) og **iac** (manifester) har ingen CodeQL-analyserbar kode — korrekt at de står uten.
@@ -165,7 +180,7 @@ Der vi avviker, er det bevisst:
   Det gir oss byggegate + den bevisste egenskapen at merge med `GITHUB_TOKEN` aldri trigger publisering/deploy.
 - **Branch protection:** sikkerhet.nav.no anbefaler påkrevde sjekker og obligatorisk PR-review på main; repoene våre har ingen av delene, og hele auto-merge-designet forutsetter det.
   Det er et bevisst avvik (liten team-flate, høy endringstakt) — innføres branch protection, må auto-merge-designet revurderes samtidig.
-- **Herdingen** (SHA-pinning, `persist-credentials: false`, minste privilegium per jobb) følger vi Golden Path på — og er strengere enn den på noen punkter: jobbsplitt så untrusted kode og write-token aldri deler jobb (Golden Path bygger med `contents: write` i samme jobb), kun patch-automerge (Golden Path automerger også minor/major), aktør+forfatter-gating og TOCTOU-lukking med `--match-head-commit`.
+- **Herdingen** (actions låst til commit — hos oss med `actions.lock` i stedet for SHA i workflowfila, `persist-credentials: false`, minste privilegium per jobb) følger vi Golden Path på — og er strengere enn den på noen punkter: jobbsplitt så untrusted kode og write-token aldri deler jobb (Golden Path bygger med `contents: write` i samme jobb), kun patch-automerge (Golden Path automerger også minor/major), aktør+forfatter-gating og TOCTOU-lukking med `--match-head-commit`.
 - **Golden Path-elementer vi ikke har tatt inn (ennå):** dependency submission via `gradle/actions/dependency-submission` i app-repoene (libs har det i publiserings-workflowen sin; appene mangler det, så deres Dependabot-alerts dekker ikke transitive avhengigheter), `dependency-review-action` på PR-er, Trivy secret-scan etter image-bygg, og CodeQL på `actions`-språket med `security-extended` (delvis dekket av actionlint+zizmor).
   Vurderingene spores i #31.
 - `nais/what-changed` er mest relevant for image-bygg og er ikke tatt i bruk; vurder ved behov.
@@ -175,7 +190,7 @@ Der vi avviker, er det bevisst:
 - **Caller-filene skal være like på tvers av repoene**: samme filnavn, samme `name:`, samme struktur og kommentarer.
   Kun det som reelt er repo-spesifikt (f.eks. `java-version`-input) får avvike — en diff mellom to repos callere skal kunne leses som en liste over reelle forskjeller mellom repoene.
   Navnestandard: calleren heter det samme som funksjonen (`Dependabot auto-merge`, `Lint workflows`), den delte workflowen har `(delt)`-suffiks i `name:`.
-- Callere pinner til `@main` (navikt-eid repo); tredjeparts-actions inne i de delte workflowene SHA- eller digest-pinnes med versjonstag/-kommentar (`# vX.Y.Z`, `# v0` for nais-actions, `docker://…:tag@sha256:…` for images).
+- Callere pinner til `@main` (navikt-eid repo); tredjeparts-actions inne i de delte workflowene refereres med tag (`@vX.Y.Z`) og låses i dette repoets `actions.lock`, mens images digest-pinnes (`docker://…:tag@sha256:…`). Se [Låsing av actions](#låsing-av-actions-actionslock).
   `@main` betyr at metarepoets main er en tillitsgrense: write-tilgang hit gir innflytelse på callernes CI, så endringer i delte workflows skal reviewes deretter.
 - Send secrets eksplisitt fra calleren, aldri `secrets: inherit` — inherit eksponerer alle repoets og org-delte secrets for den delte workflowen.
   **Forutsetningen er at den kalte workflowen deklarerer secretsene sine under `on.workflow_call.secrets`.** Gjør den ikke det, er `inherit` eneste form som virker: GitHub avviser hele kjøringen ved oppstart (`startup_failure`, «Secret … is not defined in the referenced workflow») når calleren sender en secret callee ikke deklarerer.
@@ -186,15 +201,15 @@ Der vi avviker, er det bevisst:
 - Gate-callerne trigger på både `push` (interne brancher) og `pull_request` (fork-PR-er); guarden som hindrer dobbeltkjøring bor i delt workflow, siden `github`-konteksten der reflekterer callerens event.
   Det samme gjelder Dependabot-skippen i gradle-gaten (auto-merge tester de branchene) — triggere må bo i calleren, all guard-logikk bor sentralt.
 - `permissions: {}` på toppnivå i callere; jobbrettigheter settes i calleren, og den delte workflowen kan kun nedgradere dem (aldri utvide) — den delte deklarerer derfor sitt eget eksplisitte behov som cap.
-- Metarepoets `dependabot.yml` holder `uses:`-SHA-ene ferske; zizmor-versjonen (`version:`-input) og actionlint-taggen i `docker://`-referansen er egne, manuelle vedlikeholdspunkter.
+- Metarepoets `dependabot.yml` holder `uses:`-taggene og `actions.lock` ferske; zizmor-versjonen (`version:`-input), `GH_ACTIONS_LOCK_VERSJON` og actionlint-taggen i `docker://`-referansen er egne, manuelle vedlikeholdspunkter.
 - Workflows her sikkerhetsreviewes mot GitHubs hardening-guide, zizmor-sjekkene og sikkerhet.nav.no før merge — reviewlogg og funn ligger i #31.
   Hold nye workflows til samme standard: kontekst via env i run-steg (også inputs — bruk env+eval), jq for payload-bygging, aktør- og forfatter-gating for bot-workflows.
   `lint.yml` håndhever dette maskinelt: actionlint og zizmor (begge blokkerende) kjører på alle endringer under `.github/`.
 - Workflows som kjører untrusted kode (f.eks. bygg av en Dependabot-bumpet avhengighet) splittes i jobber slik at write-token og tredjepartskode aldri deler jobb; jobben med write-token skal ikke ha checkout.
   Se sikkerhetsdesign-kommentaren øverst i `dependabot-auto-merge.yml`.
-- Repo som kaller delte workflows trenger en `.github/zizmor.yml` med `unpinned-uses`-policyen `"navikt/tiltakspenger-workflows/*": ref-pin` (ellers flagges `@main`-referansen) — kopier fra dette repoet eller libs, og behold begrunnelseskommentarene.
+- Repo som kaller delte workflows trenger en `.github/zizmor.yml` kopiert fra malen i `.github/maler/` — den tillater `@main` mot de delte workflowene, tag-referanser for actions (låst i `actions.lock`) og krever SHA for reusable workflows fra andre repoer. Behold begrunnelseskommentarene.
   Zizmor-unntak skal alltid ha en begrunnelse i konfigen; informational-funn rapporteres ikke (`min-severity: low` i den delte workflowen).
-  Gjelder unntaket ett enkelt funn og hører begrunnelsen hjemme ved siden av koden, bruk i stedet en `# zizmor: ignore[regel]`-kommentar på linja funnet peker på (tåler trailing tekst, så SHA-/versjonskommentaren kan stå i samme kommentar) — den treffer kun det funnet, mens et konfig-unntak per fil også dekker framtidige funn i fila. Begrunnelsen skal da stå i fila, ikke i konfigen. Presedens: `secrets-inherit` på tms-deploy-kallene i `tiltakspenger-meldekort-microfrontend`.
+  Gjelder unntaket ett enkelt funn og hører begrunnelsen hjemme ved siden av koden, bruk i stedet en `# zizmor: ignore[regel]`-kommentar på linja funnet peker på (tåler trailing tekst, så en forklaring kan stå i samme kommentar) — den treffer kun det funnet, mens et konfig-unntak per fil også dekker framtidige funn i fila. Begrunnelsen skal da stå i fila, ikke i konfigen. Presedens: `secrets-inherit` på tms-deploy-kallene i `tiltakspenger-meldekort-microfrontend`.
 
 ## Ingen publisering
 
