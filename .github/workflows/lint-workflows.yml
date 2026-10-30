@@ -135,7 +135,7 @@ jobs:
       # Blokkerende som default (policyen fleet-wide); repo som ennå ikke har nedfelt unntakene sine setter `zizmor-blokkerende: false` midlertidig.
       # `annotations` i stedet for `advanced-security` gir funn som PR-annotasjoner uten behov for `security-events: write`.
       - name: zizmor
-        uses: zizmorcore/zizmor-action@v0.6.4
+        uses: zizmorcore/zizmor-action@v0.8.0
         continue-on-error: ${{ !inputs.zizmor-blokkerende }}
         with:
           version: "1.27.0"
