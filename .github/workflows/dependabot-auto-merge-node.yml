@@ -103,7 +103,7 @@ jobs:
           fi
       # pnpm-versjonen leses fra packageManager-feltet i package.json (konvensjon i pnpm-repoene våre).
       - name: Set up pnpm
-        uses: pnpm/action-setup@v6.0.10
+        uses: pnpm/action-setup@v6.1.0
         if: steps.pm.outputs.manager == 'pnpm'
       - name: Set up Node
         uses: actions/setup-node@v7.0.0
