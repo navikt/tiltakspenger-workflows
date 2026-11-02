@@ -9,7 +9,7 @@ workflows:
     '.github/workflows/codeql-gradle.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-java@v6.0.0'
-        - 'github/codeql-action@v4.37.9'
+        - 'github/codeql-action@v4.39.1'
         - 'gradle/actions@v6.3.0'
     '.github/workflows/dependabot-auto-merge-node.yml':
         - 'actions/checkout@v7.0.1'
@@ -126,9 +126,9 @@ dependencies:
         commit: 'sha1-cdf488f595d80d6e07e03d4674febd5ab45fa938'
         owner_id: 9919
         repo_id: 259445878
-    'github/codeql-action@v4.37.9':
-        ref: 'v4.37.9'
-        commit: 'sha1-cdf488f595d80d6e07e03d4674febd5ab45fa938'
+    'github/codeql-action@v4.39.1':
+        ref: 'v4.39.1'
+        commit: 'sha1-9b3254085494b55a0f7c4c2b3d2d52cc712ce370'
         owner_id: 9919
         repo_id: 259445878
     'google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093':
