@@ -156,6 +156,21 @@ Standardlistene eies her (jf. #39); repoene kopierer og avviker kun med begrunne
 En endring i selve deploy-/publiseringsworkflowen skal få en ekte kjøring med én gang — branch-gaten og linten er statiske sjekker og fanger ikke feil som først viser seg i en reell deploy/publisering.
 Kostnaden (en «unødig» prod-deploy eller artefaktversjon per ren CI-endring) er akseptert; dette omgjør den tidligere beslutningen om å ignorere `.github/**` i main-workflowene.
 
+## Planlagt bygg og deploy
+
+`Build and deploy` i app-repoene har i tillegg til push-triggeren en lik `schedule`-blokk som bygger og deployer til prod hverdager kl. 06 norsk tid:
+
+```yaml
+  schedule:
+    - cron: '0 6 * * 1-5'
+      timezone: 'Europe/Oslo'
+```
+
+Baseimagene er Chainguard-images med flytende tagg uten digest, og Chainguard backporter ikke fikser til eldre bygg — et nytt image-bygg er eneste måte å få dem på ([Navs anbefaling](https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/)).
+Kjøringen tar også med Dependabot-merger, som ikke trigger workflowen selv (GITHUB_TOKEN-push).
+Den går gjennom samme test-gate og concurrency-gruppe som en vanlig push, og `nais/docker-build-push` tagger med tidsstempel, så samme commit gir nytt image og ny rollout.
+Feilvarslene bruker `github.event.pusher.name || github.event_name`, så et feilet planlagt bygg vises som `schedule` i Slack.
+
 ## CodeQL: advanced på JVM, default setup på frontend
 
 Modellen er delt med vilje, etter hva som gir mest security-verdi per repo-type:
