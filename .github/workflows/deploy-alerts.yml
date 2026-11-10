@@ -43,9 +43,9 @@ jobs:
         env:
           CLUSTER: ${{ matrix.cluster }}-gcp
           RESOURCE: ${{ inputs.nais-ressurs }}
-          # Alertene leser logger fra Loki-datakilden i sitt eget cluster.
+          # Dev og prod deler Loki-datakilde i Grafana, så logglenker filtrerer på k8s_cluster_name (dev | prod) for å vise riktig miljø.
           # Vars som manifestet ikke templater, er harmløse, så den settes uavhengig av repo.
-          VAR: datasource=${{ matrix.cluster }}-gcp-loki
+          VAR: k8s_cluster_name=${{ matrix.cluster }}
           # Tom VARS gjør at nais/deploy hopper over vars-fil-innlasting (deployclient sjekker len > 0).
           VARS: ${{ inputs.nais-vars != 'ingen' && (inputs.nais-vars != '' && inputs.nais-vars || format('.nais/vars/{0}.yml', matrix.cluster)) || '' }}
           # Alerts har ingen verifiseringssti etter deploy, så det rendrede manifestet logges.

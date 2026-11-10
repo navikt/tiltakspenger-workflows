@@ -54,7 +54,7 @@ Input-defaultene i de delte workflowene ER flåtestandarden (`java-version: '25'
 
 Utrullingsstatus per repo spores i [#31](https://github.com/navikt/tiltakspenger/issues/31) — tabellen sier hvem workflowen er for, ikke hvem som bruker den i dag.
 
-`deploy-alerts.yml` sender alltid variabelen `datasource`, og nais/deploy kjører da handlebars på hele manifestet.
+`deploy-alerts.yml` sender alltid variabelen `k8s_cluster_name` (`dev` eller `prod`), og nais/deploy kjører da handlebars på hele manifestet.
 Prometheus-uttrykk må derfor escapes — `'\{{ $labels.app }}'` — ellers er de gyldige handlebars-oppslag som mangler i konteksten og rendres stille til tom streng.
 Bruk enkle anførselstegn: i doble er `\{` et ugyldig YAML-escape, så fila slutter å parse lokalt.
 Templatingen leser råteksten før YAML-parsing, så regelen gjelder også eksempler i kommentarer.
