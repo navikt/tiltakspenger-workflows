@@ -2,10 +2,10 @@ name: Test og bygg gradle (delt)
 
 # Delt workflow for alle tiltakspenger-repoene - se README.md i denne mappa for konvensjoner og plasseringsbegrunnelse.
 # Tester og bygger et Kotlin/JVM-repo, og bygger+pusher docker-image til nais-registryet når `bygg-image` er satt.
-# Test og image-bygg kjører som parallelle jobber, så image-pushen ikke venter på testene: deploy-callere `needs`-er workflow-kallet og venter dermed på begge jobbene.
+# Test og image-bygg kjører som parallelle jobber, så image-pushen ikke venter på testene: deploy-callere `needs`-er workflow-kallet og venter dermed på alle byggejobbene.
 # Rød test stopper altså fortsatt deploy - men imaget kan ligge utestet i registryet (det deployes aldri, og det er akseptert kostnad for kortere main-pipeline).
 # `./gradlew build` kjører testene - testjobben er dermed også testgaten for PR-er og feature-brancher (kall med `bygg-image: false`).
-# Kalleren må gi workflow-kallet `contents: read`, pluss `id-token: write` for image-jobben (nais/docker-build-push autentiserer med OIDC), og sende secrets eksplisitt - aldri `secrets: inherit`.
+# Kalleren må gi workflow-kallet `contents: read`, pluss `id-token: write` for image-jobbene `image` og `dev-image` (nais/docker-build-push autentiserer med OIDC), og sende secrets eksplisitt - aldri `secrets: inherit`.
 # Gatene (`bygg-image: false`) sender i dag også id-token: write - å droppe grant-en når image-jobben skippes er ikke verifisert mot GitHubs permissions-sjekk ennå (se kommentaren i gate-callerne).
 
 on:
@@ -35,6 +35,13 @@ on:
         required: false
         type: boolean
         default: true
+      # Dev-imaget bygges i en egen jobb, strengt adskilt fra prod-imaget.
+      # Det krever også bygg-image: true og bygges aldri for pull_request eller pull_request_target.
+      dev-image:
+        description: Om et separat dev-image (<repo>-dev) skal bygges fra Docker-konteksten dev med dev/Dockerfile
+        required: false
+        type: boolean
+        default: false
       # Opt-out for testjobbens attestasjonssjekk. Gaten feiler bevisst på tom artefaktliste («målte ingenting»),
       # så et repo der bygget ikke konsumerer publiserte libs-artefakter kan aldri bli grønt med sjekken på -
       # det repoet skrur den av her i stedet for at den delte workflowen skal kjenne kallerne sine.
@@ -47,6 +54,9 @@ on:
       IMAGE:
         description: "Docker-imaget som ble bygget (tomt når bygg-image er false)"
         value: ${{ jobs.image.outputs.IMAGE }}
+      DEV_IMAGE:
+        description: "Dev-imaget (<repo>-dev) som ble bygget (tomt når dev-image-jobben hoppes over)"
+        value: ${{ jobs.dev-image.outputs.DEV_IMAGE }}
     secrets:
       SLACK_VARSEL_WEBHOOK_URL:
         description: "Webhook for varsel ved feilet bygg på main (sendes eksplisitt fra kalleren)"
@@ -72,7 +82,7 @@ jobs:
     # zizmor stopper det (dangerous-triggers, høy alvorlighet, blokkerende gate), men regelen står her fordi den ellers
     # blir gjenoppfunnet hver gang noen trenger en hemmelighet i en fork-PR. Svaret da er: hemmeligheten skal ikke dit.
     if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork) && (github.event_name != 'push' || github.actor != 'dependabot[bot]')
-    # Testjobben trenger aldri OIDC - id-token: write bor kun i image-jobben.
+    # Testjobben trenger aldri OIDC - id-token: write ligger kun i image-jobbene (image og dev-image).
     permissions:
       contents: read
     steps:
@@ -185,12 +195,59 @@ jobs:
         with:
           team: tpts
 
-  # Egen jobb slik at ett varsel dekker begge byggejobbene: failure() er sann når minst én av needs-jobbene feilet.
-  # Statusfunksjonen gjør at if-en evalueres selv om en needs-jobb er skippet (skip-propagering gjelder kun implisitt success()) - feiler testjobben, varsles det også om image-jobben er skippet.
+  # Dev-imaget bygges i en egen jobb, strengt adskilt fra prod-imaget i image-jobben.
+  # Jobben kjører kun når både dev-image og bygg-image er satt, med samme push-bot-vakt som de andre jobbene.
+  # pull_request og pull_request_target er utelukket, så PR-kode aldri bygger eller pusher et dev-image.
+  dev-image:
+    runs-on: ubuntu-latest
+    if: inputs.dev-image == true && inputs.bygg-image == true && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && (github.event_name != 'push' || github.actor != 'dependabot[bot]')
+    # id-token: write er kun for OIDC-føderasjonen i docker-build-push; GITHUB_TOKEN har bare lesetilgang.
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      DEV_IMAGE: ${{ steps.docker-push-dev.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          # Ikke la tokenet ligge igjen i .git/config - byggsteget kjører avhengigheters kode.
+          persist-credentials: false
+      - name: Set up Java
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java-version }}
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          # setup-gradle lagrer kun configuration-cache-data når nøkkelen er satt (dataene kan inneholde hemmeligheter og krypteres derfor i GHA-cachen).
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      # Kallerens image-gradle-kommando må også bygge dev-distribusjonen som dev/Dockerfile kopierer inn.
+      # Kommandoen går via env og eval, ikke ${{ }} i run.
+      - name: Bygg distribusjonen
+        run: eval "$IMAGE_GRADLE_KOMMANDO"
+        env:
+          IMAGE_GRADLE_KOMMANDO: ${{ inputs.image-gradle-kommando }}
+      - name: Bygg og push dev-image
+        # Versjonsoversikt: https://github.com/nais/docker-build-push/tags
+        uses: nais/docker-build-push@main
+        id: docker-push-dev
+        with:
+          team: tpts
+          docker_context: dev
+          dockerfile: dev/Dockerfile
+          image_suffix: dev
+          # Eget statisk BuildKit-cache-scope, så det parallelle prod-bygget ikke deler eller overskriver dev-cachen.
+          cache_from: type=gha,scope=dev
+          cache_to: type=gha,mode=max,scope=dev
+
+  # Egen jobb slik at ett varsel dekker alle byggejobbene (test, image og dev-image): failure() er sann når minst én av needs-jobbene feilet.
+  # Statusfunksjonen evalueres selv når en needs-jobb er skippet (skip-propagering gjelder kun implisitt success()), så testfeil varsles også når image-jobbene hoppes over.
   # I praksis kjører image-jobben alltid på main (deploy-callerne bruker bygg-image: true); gatene kjører aldri på main-ref, så main-guarden under skipper dem uansett.
   varsle:
     runs-on: ubuntu-latest
-    needs: [test, image]
+    needs: [test, image, dev-image]
     if: failure() && github.ref == 'refs/heads/main'
     # Jobben bruker kun webhooken - GITHUB_TOKEN trengs ikke.
     permissions: {}
