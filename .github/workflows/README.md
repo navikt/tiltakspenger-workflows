@@ -44,7 +44,7 @@ Input-defaultene i de delte workflowene ER flåtestandarden (`java-version: '25'
 | `lint-workflows.yml` | alle repoer (språkagnostisk) | `zizmor-blokkerende`, `zizmor-mal-sjekk`, `dependabot-mal` |
 | `dependabot-auto-merge.yml` | Kotlin/JVM-repoene | `java-version`; secret `SLACK_VARSEL_WEBHOOK_URL` |
 | `dependabot-auto-merge-node.yml` | frontend-repoene (saksbehandling, soknad, meldekort, meldekort-microfrontend); npm/pnpm detekteres fra lockfila | `node-version`, `test-kommando`; secrets `READER_TOKEN` (@navikt-pakker), `SLACK_VARSEL_WEBHOOK_URL` |
-| `test-og-bygg-gradle.yml` | JVM-app-repoene (erstatter lokal `.test-and-build.yml`; PR-gate med `bygg-image: false`) | `java-version`, `gradle-kommando`, `image-gradle-kommando`, `bygg-image`; secrets `SLACK_VARSEL_WEBHOOK_URL`, `GRADLE_ENCRYPTION_KEY` (valgfri) |
+| `test-og-bygg-gradle.yml` | JVM-app-repoene (erstatter lokal `.test-and-build.yml`; PR-gate med `bygg-image: false`) | `java-version`, `gradle-kommando`, `image-gradle-kommando`, `bygg-image`, `dev-image` (default `false`); secrets `SLACK_VARSEL_WEBHOOK_URL`, `GRADLE_ENCRYPTION_KEY` (valgfri); outputs `IMAGE`, `DEV_IMAGE` |
 | `dependency-submission-gradle.yml` | JVM-app-repoene (Dependabot-synlighet for transitive avhengigheter; libs sender inn fra publiseringsbygget sitt) | `java-version` |
 | `test-og-bygg-node.yml` | frontend-repoenes test-/verifiseringsgate (PR/branch; image-bygg forblir lokale); npm/pnpm detekteres fra lockfila | `node-version`, `kommando`; secrets `READER_TOKEN`, `SLACK_VARSEL_WEBHOOK_URL` |
 | `bygg-image.yml` | repo der Dockerfilen er hele bygget (pdfgen, pdfgenrs) | ingen inputs; output `IMAGE` |
@@ -97,8 +97,17 @@ Feiler steget, er det enten et artefakt uten attestasjon eller ett som ikke komm
 
 `test-og-bygg-gradle.yml` eksponerer imaget som workflow-output `IMAGE`; deploy-calleren sender den videre til `deploy-nais.yml` via `needs.<jobb>.outputs.IMAGE` — det er komposisjonsmønsteret for bygg-og-deploy-pipelines.
 Test og image-bygg er parallelle jobber i den delte workflowen: image-jobben bygger kun distribusjonen (`installDist -x check`) og pusher, mens testjobben kjører hele `build` pluss `installDist` — gatene fanger dermed dist-brekkasje før main (selve Dockerfile-bygget dekkes som før først av main-kjøringen).
-Callerens `needs` på workflow-kallet venter på begge, så deploy er fortsatt gatet på grønn test — men imaget kan ligge utestet i registryet uten å bli deployet (akseptert kostnad for ~1 min kortere main-pipeline).
-Slack-varselet ved feil på main bor i en egen jobb som dekker begge byggejobbene.
+Kallerens `needs` på workflow-kallet venter på alle byggejobbene, så deploy krever fortsatt grønn test, selv om et utestet image kan bli liggende i registryet (~1 min kortere main-pipeline).
+Slack-varselet ved feil på main ligger i en egen jobb som dekker alle byggejobbene (test, image og dev-image).
+
+`dev-image: true` (default `false`) legger til en egen `dev-image`-jobb som bygger et strengt adskilt dev-image parallelt med prod-imaget.
+Jobben kjører kun når også `bygg-image` er `true`, og aldri på `pull_request` eller `pull_request_target`.
+Push-events fra Dependabot hoppes over, som i de andre jobbene.
+Dev-imaget bygges fra Docker-konteksten `dev` med `dev/Dockerfile` og pushes som `<repo>-dev`.
+Kallerens `image-gradle-kommando` må bygge dev-distribusjonen som `dev/Dockerfile` kopierer inn.
+Dev-bygget bruker egen BuildKit-cache (GHA-scope `dev`), adskilt fra det parallelle prod-bygget.
+Imaget eksponeres som workflow-output `DEV_IMAGE`, uten fallback til `IMAGE`.
+`DEV_IMAGE` er tomt når `dev-image`-jobben hoppes over.
 
 **`GRADLE_ENCRYPTION_KEY`**: setup-gradle lagrer aldri Gradle configuration-cache i GHA-cachen uten en krypteringsnøkkel (`cache-encryption-key`) — uten den betaler hvert CI-bygg full konfigurasjon (~10 s).
 Secreten er valgfri (tom verdi gir samme oppførsel som før) og settes som repo-secret i hvert JVM-repo (org-secret krever org-admin i navikt).
